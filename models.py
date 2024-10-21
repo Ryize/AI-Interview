@@ -33,6 +33,7 @@ class Question(Base):
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     topic = Column(String(255), nullable=False)
+    difficulty = Column(Integer, nullable=True)
     question = Column(Text, nullable=False)
     answer = Column(Text, nullable=False)
 
@@ -41,7 +42,11 @@ class Question(Base):
 
 
 # Создание движка базы данных MySQL с PyMySQL
-engine = create_engine('mysql+pymysql://u1450880_sasha:YourPass123@server102.hosting.reg.ru/u1450880_sasha')
+login = 'LOGIN'
+password = 'PASSWORD'
+host = 'HOST'
+database = 'DATABASE'
+engine = create_engine(f'mysql+pymysql://{login}:{password}@{host}/{database}')
 
 # Создаем таблицы в базе данных
 Base.metadata.create_all(engine)

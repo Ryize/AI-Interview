@@ -1,7 +1,7 @@
 import telebot
 from keyboard_mixin import KeyboardMixin
 
-API_TOKEN = ''  # Нужен токен
+API_TOKEN = '6211235689:AAHs7jaWjWMGvVxwOoMljFcgeykp2mdCOSY'  # Нужен токен
 
 bot = telebot.TeleBot(API_TOKEN)
 kb = KeyboardMixin()
@@ -19,47 +19,48 @@ def start(message):
 
 
 # Обработчик нажатия на кнопку "Информация"
-@bot.message_handler(func=lambda message: message.text == 'Информация')
+@bot.message_handler(func=lambda message: message.text == 'Информация 📚')
 def info(message):
     bot.send_message(message.chat.id, "Этот бот помогает готовиться к собеседованию по языку программирования Python")
 
 
-# Обработчик нажатия на кнопку "Твой собес"
-@bot.message_handler(func=lambda message: message.text == 'Твой собес 👨‍💻')
-def check_category_interview_button(message):
-    chat_id = message.chat.id
-    bot.send_message(chat_id, 'Выберите тип собеседования:', reply_markup=kb.interview_menu())
-
-
-# Обработчик нажатия на кнопку "AI Собес"
-@bot.message_handler(func=lambda message: message.text == 'AI Собес')
-def ai_interview_button(message):
-    chat_id = message.chat.id
-    bot.send_message(chat_id, 'Укажите количество вопросов:', reply_markup=kb.amount_question_kb(True))
-    bot.register_next_step_handler(message, ai_interview_topics)
-
-
-# Появление тем после выбора количества вопросов для AI Собес
+# Обработчик нажатия на кнопку 'Выбрать тему для вопросов 🧑‍💻'
+@bot.message_handler(func=lambda message: message.text == 'Выбрать тему для вопросов 🧑‍💻')
 def ai_interview_topics(message):
     chat_id = message.chat.id
-    if message.text == 'Назад':
-        bot.send_message(chat_id, 'Возвращаемся в меню выбора собеседования:', reply_markup=kb.interview_menu())
-        return
-    amount = message.text
-    interview_data[chat_id] = {'type': 'AI Собес', 'amount': amount}
     bot.send_message(chat_id, 'Выберите тему для собеседования:', reply_markup=kb.topics_kb(True))
     bot.register_next_step_handler(message, ai_interview_difficulty)
+
+
+# # Обработчик нажатия на кнопку "Выбрать тему для вопросов 🧑‍💻"
+# @bot.message_handler(func=lambda message: message.text == 'AI Собес')
+# def ai_interview_button(message):
+#     chat_id = message.chat.id
+#     bot.send_message(chat_id, 'Укажите количество вопросов:', reply_markup=kb.amount_question_kb(True))
+#     bot.register_next_step_handler(message, ai_interview_topics)
+
+
+# # Появление тем после выбора количества вопросов для AI Собес
+# def ai_interview_topics(message):
+#     chat_id = message.chat.id
+#     if message.text == 'Назад':
+#         bot.send_message(chat_id, 'Возвращаемся в меню выбора собеседования:', reply_markup=kb.interview_menu())
+#         return
+#     amount = message.text
+#     interview_data[chat_id] = {'type': 'AI Собес', 'amount': amount}
+#     bot.send_message(chat_id, 'Выберите тему для собеседования:', reply_markup=kb.topics_kb(True))
+#     bot.register_next_step_handler(message, ai_interview_difficulty)
 
 
 # Обработчик выбора темы для AI Собес
 def ai_interview_difficulty(message):
     chat_id = message.chat.id
     if message.text == 'Назад':
-        bot.send_message(chat_id, 'Возвращаемся к выбору количества вопросов:',
-                         reply_markup=kb.amount_question_kb(True))
-        bot.register_next_step_handler(message, ai_interview_topics)
+        bot.send_message(chat_id, 'Возвращаемся в главное меню',
+                         reply_markup=kb.main_menu())
+        bot.register_next_step_handler(message, start)
         return
-    interview_data[chat_id]['topic'] = message.text
+    interview_data[chat_id] = {'topic': message.text}
     if interview_data[chat_id]['topic'] == 'Python':
         bot.send_message(chat_id, 'Выберите сложность вопросов:', reply_markup=kb.difficulty_kb(True))
         bot.register_next_step_handler(message, ai_interview_start)

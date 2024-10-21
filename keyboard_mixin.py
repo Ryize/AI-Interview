@@ -4,9 +4,10 @@ from telebot import types
 class KeyboardMixin:
     def main_menu(self):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-        interview_button = types.KeyboardButton('Твой собес 👨‍💻')
-        info_button = types.KeyboardButton('Информация')
-        markup.add(interview_button, info_button)
+        interview_button = types.KeyboardButton('Выбрать тему для вопросов 🧑‍💻')
+        profile_button = types.KeyboardButton('Ваш профиль 🧑')
+        info_button = types.KeyboardButton('Информация 📚')
+        markup.add(interview_button, profile_button, info_button)
         return markup
 
     def interview_menu(self):
