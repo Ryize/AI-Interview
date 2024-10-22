@@ -1,21 +1,30 @@
 import telebot
 from keyboard_mixin import KeyboardMixin
+from models import DataAccess
+from sqlalchemy.orm import joinedload
+import os
+from dotenv import load_dotenv
 
-API_TOKEN = '6211235689:AAHs7jaWjWMGvVxwOoMljFcgeykp2mdCOSY'  # Нужен токен
+load_dotenv()
+API_TOKEN = os.getenv('API_TOKEN')
 
 bot = telebot.TeleBot(API_TOKEN)
 kb = KeyboardMixin()
-
+data_access = DataAccess()
 temp_data = {}
 interview_data = {}
 interview_question = {}
 
 
-# Обработчик команды /start
 @bot.message_handler(commands=['start'])
 def start(message):
-    welcome_message = f"Привет, {message.from_user.first_name}! Это телеграм-бот."
-    bot.send_message(message.chat.id, welcome_message, reply_markup=kb.main_menu())
+    
+    login = str(message.from_user.id)
+    if data_access.add_user(login):
+        bot.send_message(message.chat.id,
+                         f"Привет, {message.from_user.first_name}, начнем!",
+                         reply_markup=kb.main_menu())
+    
 
 
 # Обработчик нажатия на кнопку "Информация"
@@ -64,8 +73,11 @@ def ai_interview_difficulty(message):
     if interview_data[chat_id]['topic'] == 'Python':
         bot.send_message(chat_id, 'Выберите сложность вопросов:', reply_markup=kb.difficulty_kb(True))
         bot.register_next_step_handler(message, ai_interview_start)
-    else:
-        bot.send_message(chat_id, 'Начинаем собеседование!', reply_markup=kb.user_kb())
+    if interview_data[chat_id]['topic'] == 'Django':
+        login = message.from_user.id
+        existing_user = data_access.get_existing_user(login)
+        if existing_user:
+        	print(data_access.get_random_unanswered_question(existing_user.login, 'Django')) 
 
 
 # Обработчик выбора сложности для AI Собес
@@ -123,3 +135,4 @@ def unknown_command(message):
 if __name__ == '__main__':
     print('Bot is running')
     bot.polling(none_stop=True)
+
