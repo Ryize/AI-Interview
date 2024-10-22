@@ -1,6 +1,7 @@
 import telebot
 from keyboard_mixin import KeyboardMixin
 from models import DataAccess
+from ai_logic import InterviewThisOutOfOpenAI
 from sqlalchemy.orm import joinedload
 import os
 from dotenv import load_dotenv
@@ -11,6 +12,7 @@ API_TOKEN = os.getenv('API_TOKEN')
 bot = telebot.TeleBot(API_TOKEN)
 kb = KeyboardMixin()
 data_access = DataAccess()
+
 temp_data = {}
 interview_data = {}
 interview_question = {}
@@ -76,8 +78,24 @@ def ai_interview_difficulty(message):
     if interview_data[chat_id]['topic'] == 'Django':
         login = message.from_user.id
         existing_user = data_access.get_existing_user(login)
+        question = data_access.get_random_unanswered_question(existing_user.login, 'Django')
+        interview_question[chat_id] = {'question': question}
         if existing_user:
-        	print(data_access.get_random_unanswered_question(existing_user.login, 'Django')) 
+            bot.send_message(chat_id,
+                             question.question)
+            bot.register_next_step_handler(message, ai_interview_receive_answer)
+
+def ai_interview_receive_answer(message):
+    chat_id = message.chat.id
+    user_answer = message.text  # Ответ пользователя
+    login = message.from_user.id
+    question = interview_question[chat_id]['question'].question
+    reference_question = interview_question[chat_id]['question'].answer
+    interview = InterviewThisOutOfOpenAI(question, reference_question, user_answer)
+    bot.send_message(chat_id, interview.get_response())
+
+
+
 
 
 # Обработчик выбора сложности для AI Собес

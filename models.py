@@ -113,7 +113,7 @@ class DataAccess:
             return None  # Возвращаем None, если нет доступных вопросов
 
         # Возвращаем случайный вопрос
-        return random.choice(unanswered_questions).question
+        return random.choice(unanswered_questions)
 
 
 
