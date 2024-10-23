@@ -57,3 +57,12 @@ class KeyboardMixin:
         interview_button = types.KeyboardButton('Твой собес 👨‍💻')
         markup.add(interview_button)
         return markup
+
+    def interview_reply_kb(self):
+        reply_markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+        next_question_button = types.KeyboardButton('Следующий вопрос ➡️')
+        choose_topic_button = types.KeyboardButton('К выбору темы 📝')
+        main_menu_button = types.KeyboardButton('В главное меню 🏠')
+
+        reply_markup.add(next_question_button, choose_topic_button, main_menu_button)
+        return reply_markup
