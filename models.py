@@ -69,17 +69,18 @@ class DataAccess:
     def get_existing_user(self, login):
         user = session.query(User).filter_by(login=login).first()
         if not user:
-            raise ValueError("User not found")
+            return None
         return user
 
     def add_user(self, login):
         # Проверяем, существует ли пользователь с таким логином в базе
-        existing_user = self.get_existing_user(login)
+        user = self.get_existing_user(login)
         
-        if not existing_user:
+        if not user:
             # Если пользователя нет, добавляем его в базу
             try:
-                new_user = User(login=login)
+                new_user = User(login=login,
+                                question_limit=10)
                 session.add(new_user)
                 session.commit()
             except IntegrityError:
@@ -89,9 +90,11 @@ class DataAccess:
         else:
             return True
 
-    def get_random_unanswered_question(self, user_login, topic):
+    def get_random_unanswered_question(self, login, topic):
         # Получаем пользователя по его логину
-        user = self.get_existing_user(user_login)
+        user = self.get_existing_user(login)
+        if user.question_limit < 1:
+            return -1
 
         # Получаем список всех вопросов по указанной теме
         all_questions = session.query(Question).filter_by(topic=topic).all()
@@ -114,16 +117,23 @@ class DataAccess:
         if not unanswered_questions:
             question_low_score = self.get_questions_for_user_with_low_score(user.id)
             if question_low_score:
+                user.question_limit = user.question_limit - 1
+                session.commit()
                 return random.choice(question_low_score)
             else:
                 return False
 
         # Возвращаем случайный вопрос
+        user.question_limit = user.question_limit - 1
+        session.commit()
         return random.choice(unanswered_questions)
     
-    def save_progress(self, user_id, question_id, answer, score):
+    def save_progress(self, login, question_id, answer, score):
+
+        user = self.get_existing_user(login=login)
+
         # Проверяем, есть ли уже прогресс для данного пользователя и вопроса
-        existing_progress = session.query(ProgressStudy).filter_by(user_id=user_id,
+        existing_progress = session.query(ProgressStudy).filter_by(user_id=user.id,
                                                                    question_id=question_id).first()
         
         if existing_progress:
@@ -132,7 +142,7 @@ class DataAccess:
             existing_progress.score = score
         else:
             # Если прогресс не найден, создаем новый экземпляр
-            new_progress = ProgressStudy(user_id=user_id,
+            new_progress = ProgressStudy(user_id=user.id,
                                         question_id=question_id,
                                         answer=answer,
                                         score=score)
@@ -140,13 +150,6 @@ class DataAccess:
     
         # Сохраняем изменения в базе данных
         session.commit()
-    
-    def get_user_id_by_login(self, login):
-        user = session.query(User).filter_by(login=login).first()
-        if user:
-            return user.id
-        else:
-            return None
 
     def get_questions_for_user_with_low_score(self, user_id):
         return session.query(Question).\

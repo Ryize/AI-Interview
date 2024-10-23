@@ -60,34 +60,40 @@ def ai_interview_question(message):
         existing_user = data_access.get_existing_user(login)
         question = data_access.get_random_unanswered_question(existing_user.login, 'Django')
         if question:
-            interview_question[chat_id] = {'question': question}
-            bot.send_message(chat_id, question.question, reply_markup=types.ReplyKeyboardRemove())
-            bot.register_next_step_handler(message, ai_interview_receive_answer)
+            if question == -1:
+                bot.send_message(chat_id, 'Колличество попыток иссякло, завтра можно продолжить', reply_markup=kb.main_menu())
+            else:
+                interview_question[chat_id] = {'question': question}
+                bot.send_message(chat_id, question.question, reply_markup=types.ReplyKeyboardRemove())
+                bot.register_next_step_handler(message, ai_interview_receive_answer)
         else:
             bot.send_message(chat_id, "Вы ответили на все вопросы правильно!\nПоздравляю! Вы прошли интервью по Django! 🎉", reply_markup=kb.main_menu())
 
 def ai_interview_receive_answer(message):
     chat_id = message.chat.id
     user_answer = message.text  # Ответ пользователя
-    user_id = data_access.get_user_id_by_login(message.from_user.id)
+    login = message.from_user.id
     question = interview_question[chat_id]['question'].question
     question_id = int(interview_question[chat_id]['question'].id)
     reference_question = interview_question[chat_id]['question'].answer
     answer_gpt = InterviewThisOutOfOpenAI(question, reference_question, user_answer).get_response()
     score = bussiness_logic.extract_first_digit(answer_gpt)
-    data_access.save_progress(user_id, question_id, user_answer, score)
+    data_access.save_progress(login, question_id, user_answer, score)
     bot.send_message(chat_id, answer_gpt, reply_markup=kb.interview_reply_kb())
 
 @bot.message_handler(func=lambda message: message.text in ['Следующий вопрос ➡️', 'К выбору темы 📝', 'В главное меню 🏠'])
 def handle_reply_buttons(message):
     chat_id = message.chat.id
     if message.text == 'Следующий вопрос ➡️':
-        existing_user = data_access.get_existing_user(message.from_user.id)
-        question = data_access.get_random_unanswered_question(existing_user.login, 'Django')
+        login = message.from_user.id
+        question = data_access.get_random_unanswered_question(login, 'Django')
         if question:
-            interview_question[chat_id] = {'question': question}
-            bot.send_message(chat_id, question.question, reply_markup=kb.main_menu())
-            bot.register_next_step_handler(message, ai_interview_receive_answer)
+            if question == -1:
+                bot.send_message(chat_id, 'Колличество попыток иссякло, завтра можно продолжить', reply_markup=kb.main_menu())
+            else:
+                interview_question[chat_id] = {'question': question}
+                bot.send_message(chat_id, question.question, reply_markup=types.ReplyKeyboardRemove())
+                bot.register_next_step_handler(message, ai_interview_receive_answer)
         else:
             bot.send_message(chat_id, "Вы ответили на все вопросы правильно!\nПоздравляю! Вы прошли интервью по Django! 🎉", reply_markup=kb.main_menu())
     elif message.text == 'К выбору темы 📝':
@@ -117,4 +123,3 @@ def unknown_command(message):
 if __name__ == '__main__':
     print('Bot is running')
     bot.polling(none_stop=True)
-
