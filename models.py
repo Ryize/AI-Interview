@@ -1,6 +1,7 @@
 from sqlalchemy import create_engine, Column, Integer, String, Text, ForeignKey
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import joinedload
 import random
 from dotenv import load_dotenv
 import os
@@ -66,7 +67,10 @@ class DataAccess:
         self.session = Session()
 
     def get_existing_user(self, login):
-        return session.query(User).filter_by(login=login).first()
+        user = session.query(User).filter_by(login=login).first()
+        if not user:
+            raise ValueError("User not found")
+        return user
 
     def add_user(self, login):
         # Проверяем, существует ли пользователь с таким логином в базе
@@ -87,9 +91,7 @@ class DataAccess:
 
     def get_random_unanswered_question(self, user_login, topic):
         # Получаем пользователя по его логину
-        user = session.query(User).filter_by(login=user_login).first()
-        if not user:
-            raise ValueError("User not found")
+        user = self.get_existing_user(user_login)
 
         # Получаем список всех вопросов по указанной теме
         all_questions = session.query(Question).filter_by(topic=topic).all()
@@ -110,23 +112,59 @@ class DataAccess:
 
         # Проверяем, есть ли вопросы, на которые пользователь не ответил
         if not unanswered_questions:
-            return None  # Возвращаем None, если нет доступных вопросов
+            question_low_score = self.get_questions_for_user_with_low_score(user.id)
+            if question_low_score:
+                return random.choice(question_low_score)
+            else:
+                return False
 
         # Возвращаем случайный вопрос
         return random.choice(unanswered_questions)
+    
+    def save_progress(self, user_id, question_id, answer, score):
+        # Проверяем, есть ли уже прогресс для данного пользователя и вопроса
+        existing_progress = session.query(ProgressStudy).filter_by(user_id=user_id,
+                                                                   question_id=question_id).first()
+        
+        if existing_progress:
+            # Если прогресс существует, обновляем answer и score
+            existing_progress.answer = answer
+            existing_progress.score = score
+        else:
+            # Если прогресс не найден, создаем новый экземпляр
+            new_progress = ProgressStudy(user_id=user_id,
+                                        question_id=question_id,
+                                        answer=answer,
+                                        score=score)
+            session.add(new_progress)
+    
+        # Сохраняем изменения в базе данных
+        session.commit()
+    
+    def get_user_id_by_login(self, login):
+        user = session.query(User).filter_by(login=login).first()
+        if user:
+            return user.id
+        else:
+            return None
+
+    def get_questions_for_user_with_low_score(self, user_id):
+        return session.query(Question).\
+            join(ProgressStudy, ProgressStudy.question_id == Question.id).\
+            filter(ProgressStudy.user_id == user_id).\
+            filter(ProgressStudy.score < 7).\
+            all()
 
 
 
-
-
-#Пример добавления данных
+# Пример добавления данных
 # def add_test_data():
 #     # Создаем пользователя
 #     user = User(login="denis", question_limit=5)
 #     user1 = User(login="uma", question_limit=2)
 #     session.add_all([user, user1])
     
-    # Создаем вопросы
+#     Создаем вопросы
 # question1 = Question(topic="Django",
 #                      question="Что такое Django и почему его используют?",
 #                      answer="Django это Python фреймворк, который упрощает разработку веб-приложений. Его используют потому, что он предоставляет множество встроенных инструментов (например, для работы с базами данных, аутентификации и администрирования). Также Django защищает от основных уязвимостей, таких как SQL инъекции, XSS, CSRF")

@@ -2,7 +2,7 @@ import telebot
 from keyboard_mixin import KeyboardMixin
 from models import DataAccess
 from ai_logic import InterviewThisOutOfOpenAI
-from sqlalchemy.orm import joinedload
+from business_logic import BusinessLogic
 import os
 from dotenv import load_dotenv
 
@@ -12,6 +12,7 @@ API_TOKEN = os.getenv('API_TOKEN')
 bot = telebot.TeleBot(API_TOKEN)
 kb = KeyboardMixin()
 data_access = DataAccess()
+bussiness_logic = BusinessLogic()
 
 temp_data = {}
 interview_data = {}
@@ -43,26 +44,6 @@ def ai_interview_topics(message):
     bot.register_next_step_handler(message, ai_interview_difficulty)
 
 
-# # Обработчик нажатия на кнопку "Выбрать тему для вопросов 🧑‍💻"
-# @bot.message_handler(func=lambda message: message.text == 'AI Собес')
-# def ai_interview_button(message):
-#     chat_id = message.chat.id
-#     bot.send_message(chat_id, 'Укажите количество вопросов:', reply_markup=kb.amount_question_kb(True))
-#     bot.register_next_step_handler(message, ai_interview_topics)
-
-
-# # Появление тем после выбора количества вопросов для AI Собес
-# def ai_interview_topics(message):
-#     chat_id = message.chat.id
-#     if message.text == 'Назад':
-#         bot.send_message(chat_id, 'Возвращаемся в меню выбора собеседования:', reply_markup=kb.interview_menu())
-#         return
-#     amount = message.text
-#     interview_data[chat_id] = {'type': 'AI Собес', 'amount': amount}
-#     bot.send_message(chat_id, 'Выберите тему для собеседования:', reply_markup=kb.topics_kb(True))
-#     bot.register_next_step_handler(message, ai_interview_difficulty)
-
-
 # Обработчик выбора темы для AI Собес
 def ai_interview_difficulty(message):
     chat_id = message.chat.id
@@ -79,66 +60,34 @@ def ai_interview_difficulty(message):
         login = message.from_user.id
         existing_user = data_access.get_existing_user(login)
         question = data_access.get_random_unanswered_question(existing_user.login, 'Django')
-        interview_question[chat_id] = {'question': question}
-        if existing_user:
-            bot.send_message(chat_id,
-                             question.question)
+        if question:
+            interview_question[chat_id] = {'question': question}
+            bot.send_message(chat_id, question.question)
             bot.register_next_step_handler(message, ai_interview_receive_answer)
+        else:
+            bot.send_message(chat_id, "Вы ответили на все вопросы правильно!\nПоздравляю! Вы прошли интервью по Django! 🎉")
 
 def ai_interview_receive_answer(message):
     chat_id = message.chat.id
     user_answer = message.text  # Ответ пользователя
-    login = message.from_user.id
+    user_id = data_access.get_user_id_by_login(message.from_user.id)
     question = interview_question[chat_id]['question'].question
+    question_id = int(interview_question[chat_id]['question'].id)
     reference_question = interview_question[chat_id]['question'].answer
-    interview = InterviewThisOutOfOpenAI(question, reference_question, user_answer)
-    bot.send_message(chat_id, interview.get_response())
+    answer_gpt = InterviewThisOutOfOpenAI(question, reference_question, user_answer).get_response()
+    score = bussiness_logic.extract_first_digit(answer_gpt)
+    data_access.save_progress(user_id, question_id, user_answer, score)
+    bot.send_message(chat_id, answer_gpt)
 
 
 
-
-
-# Обработчик выбора сложности для AI Собес
+# Обработчик выбора сложности для AI Собес Python
 def ai_interview_start(message):
     chat_id = message.chat.id
     if message.text == 'Назад':
         bot.send_message(chat_id, 'Возвращаемся к выбору темы:', reply_markup=kb.topics_kb(True))
         bot.register_next_step_handler(message, ai_interview_difficulty)
         return
-    bot.send_message(chat_id, 'Начинаем собеседование!', reply_markup=kb.user_kb())
-
-
-# Обработчик нажатия на кнопку "Вопросы"
-@bot.message_handler(func=lambda message: message.text == 'Вопросы')
-def questions_button(message):
-    chat_id = message.chat.id
-    bot.send_message(chat_id, 'Выберите тему вопросов:', reply_markup=kb.topics_kb(True))
-    bot.register_next_step_handler(message, question_difficulty)
-
-
-# Обработчик выбора темы
-def question_difficulty(message):
-    chat_id = message.chat.id
-    if message.text == 'Назад':
-        bot.send_message(chat_id, 'Возвращаемся в меню выбора собеседования:', reply_markup=kb.interview_menu())
-        return
-    interview_data[chat_id] = {'type': 'Вопросы', 'topic': message.text}
-    if interview_data[chat_id]['topic'] == 'Python':
-        bot.send_message(chat_id, 'Выберите сложность вопросов:', reply_markup=kb.difficulty_kb(True))
-        bot.register_next_step_handler(message, question_amount)
-    else:
-        bot.send_message(chat_id, 'Укажите количество вопросов:', reply_markup=kb.amount_question_kb(True))
-        bot.register_next_step_handler(message, question_amount)
-
-
-# Обработчик выбора количества вопросов
-def question_amount(message):
-    chat_id = message.chat.id
-    if message.text == 'Назад':
-        bot.send_message(chat_id, 'Возвращаемся к выбору темы вопросов:', reply_markup=kb.topics_kb(True))
-        bot.register_next_step_handler(message, question_difficulty)
-        return
-    interview_data[chat_id]['amount'] = message.text
     bot.send_message(chat_id, 'Начинаем собеседование!', reply_markup=kb.user_kb())
 
 
