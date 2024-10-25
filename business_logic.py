@@ -9,3 +9,6 @@ class BusinessLogic:
 		if match:
 			return int(match.group(0))  # Возвращает найденную цифру как целое число
 		return None
+	
+
+

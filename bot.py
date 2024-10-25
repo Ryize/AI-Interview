@@ -56,18 +56,24 @@ def ai_interview_question(message):
         bot.send_message(chat_id, 'Выберите сложность вопросов:', reply_markup=kb.difficulty_kb(True))
         bot.register_next_step_handler(message, ai_interview_start)
     if interview_data[chat_id]['topic'] == 'Django':
-        login = message.from_user.id
-        existing_user = data_access.get_existing_user(login)
-        question = data_access.get_random_unanswered_question(existing_user.login, 'Django')
-        if question:
-            if question == -1:
-                bot.send_message(chat_id, 'Колличество попыток иссякло, завтра можно продолжить', reply_markup=kb.main_menu())
-            else:
-                interview_question[chat_id] = {'question': question}
-                bot.send_message(chat_id, question.question, reply_markup=types.ReplyKeyboardRemove())
-                bot.register_next_step_handler(message, ai_interview_receive_answer)
+        get_question(message, chat_id, 'Django')
+
+
+def get_question(message, chat_id, topic):
+    login = message.from_user.id
+    user = data_access.get_existing_user(login)
+    data_access.check_date(user) # Обновляем колличество вопросов на день
+    question = data_access.get_random_unanswered_question(user.login, topic)
+    if question:
+        if question == -1:
+            bot.send_message(chat_id, 'Колличество попыток иссякло, завтра можно продолжить', reply_markup=kb.main_menu())
         else:
-            bot.send_message(chat_id, "Вы ответили на все вопросы правильно!\nПоздравляю! Вы прошли интервью по Django! 🎉", reply_markup=kb.main_menu())
+            interview_question[chat_id] = {'question': question}
+            bot.send_message(chat_id, question.question, reply_markup=types.ReplyKeyboardRemove())
+            bot.register_next_step_handler(message, ai_interview_receive_answer)
+    else:
+        bot.send_message(chat_id, f"Вы ответили на все вопросы правильно!\nПоздравляю! Вы прошли интервью по {topic}! 🎉", reply_markup=kb.main_menu())
+
 
 def ai_interview_receive_answer(message):
     chat_id = message.chat.id
@@ -76,7 +82,8 @@ def ai_interview_receive_answer(message):
     question = interview_question[chat_id]['question'].question
     question_id = int(interview_question[chat_id]['question'].id)
     reference_question = interview_question[chat_id]['question'].answer
-    answer_gpt = InterviewThisOutOfOpenAI(question, reference_question, user_answer).get_response()
+    if reference_question:
+        answer_gpt = InterviewThisOutOfOpenAI(question, reference_question, user_answer).get_response()
     score = bussiness_logic.extract_first_digit(answer_gpt)
     data_access.save_progress(login, question_id, user_answer, score)
     bot.send_message(chat_id, answer_gpt, reply_markup=kb.interview_reply_kb())
@@ -117,7 +124,6 @@ def ai_interview_start(message):
 def unknown_command(message):
     bot.send_message(message.chat.id, '🧐 Неизвестная команда. Пожалуйста, выберите одну из предложенных опций.',
                      reply_markup=kb.main_menu())
-
 
 # Запуск бота
 if __name__ == '__main__':

@@ -1,11 +1,10 @@
 from sqlalchemy import create_engine, Column, Integer, String, Text, ForeignKey
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import joinedload
 import random
 from dotenv import load_dotenv
 import os
-
+from datetime import datetime
 load_dotenv()
 
 Base = declarative_base()
@@ -117,14 +116,14 @@ class DataAccess:
         if not unanswered_questions:
             question_low_score = self.get_questions_for_user_with_low_score(user.id)
             if question_low_score:
-                user.question_limit = user.question_limit - 1
+                # user.question_limit = user.question_limit - 1
                 session.commit()
                 return random.choice(question_low_score)
             else:
                 return False
 
         # Возвращаем случайный вопрос
-        user.question_limit = user.question_limit - 1
+        # user.question_limit = user.question_limit - 1
         session.commit()
         return random.choice(unanswered_questions)
     
@@ -158,8 +157,16 @@ class DataAccess:
             filter(ProgressStudy.score < 7).\
             all()
 
-
-
+    def check_date(self, user):
+        now_day = datetime.now().date()
+        last_visit = user.last_visit
+        if now_day > last_visit:
+            user.question_limit = 10
+            user.last_visit = now_day
+            session.commit()
+            return True
+        else:
+            return False
 # Пример добавления данных
 # def add_test_data():
 #     # Создаем пользователя
