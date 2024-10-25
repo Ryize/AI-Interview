@@ -15,8 +15,8 @@ class Interview:
         client: Объект клиента OpenAI, инициализируется с помощью API токена.
         description (str): Инструкция для оценки ответов.
         question (str): Вопрос, на который нужно ответить.
-        reference_question (str): Эталонный ответ.
-        user_question (str): Ответ пользователя.
+        reference_answer (str): Эталонный ответ.
+        user_answer (str): Ответ пользователя.
     """
 
     client = None
@@ -50,30 +50,18 @@ class Interview:
         load_dotenv()
         self.token = os.getenv('GPT_TOKEN')  # Исправлено: теперь токен сохраняется в атрибуте экземпляра
         self.question = question
-        self.reference_question = reference_question
-        self.user_question = user_question
+        self.reference_answer = reference_question
+        self.user_answer = user_question
+        self.user_request = self.user_request()
 
-class InterviewThisOutOfOpenAI(Interview):
-    """
-    Класс для проведения интервью на знание Python.
-
-    Класс наследуется от класса Interview и использует OpenAI API для сравнения эталонного ответа с ответом пользователя
-    и выставления оценки по 10-бальной шкале.
-    Не использует библиотеку OpenAI.
-    """
-
-
-    def __init__(self, question, reference_question, user_question) -> None:
-        """
-        Инициализация объекта класса InterviewThisOutOfOpenAI.
-
-        Args:
-            question (str): Вопрос для собеседования.
-            reference_question (str): Эталонный ответ на вопрос.
-            user_question (str): Ответ пользователя, который необходимо оценить.
-        """
-        self.token = os.getenv('GPT_TOKEN')
-        super().__init__(question, reference_question, user_question)
+    def user_request(self):
+        if self.reference_question:
+            return f'Вопрос: {self.question}.' \
+                   f'Эталонный ответ: {self.reference_answer}' \
+                   f'Ответ: {self.user_answer}'
+        else:
+            return f'Вопрос: {self.question}.' \
+                   f'Ответ: {self.user_answer}'
 
     def get_response(self) -> str:
         """
@@ -84,9 +72,6 @@ class InterviewThisOutOfOpenAI(Interview):
         Returns:
             str: Оценка ответа пользователя, сгенерированная OpenAI.
         """
-        user_request = (f'Вопрос: {self.question}.'
-                        f'Эталонный ответ: {self.reference_question}'
-                        f'Ответ: {self.user_question}')
 
         # Заголовки запроса
         headers = {
@@ -99,7 +84,7 @@ class InterviewThisOutOfOpenAI(Interview):
             "model": "gpt-4o",
             "messages": [
                 {"role": "system", "content": self.description},
-                {"role": "user", "content": user_request}
+                {"role": "user", "content": self.user_request}
             ],
             "max_tokens": 150,
             "temperature": 0.7
@@ -119,8 +104,22 @@ class InterviewThisOutOfOpenAI(Interview):
         else:
             return f"Error: {response.status_code}\n{response.text}"
 
-# interview = InterviewThisOutOfOpenAI('Что такое переменная в Python?',
-#                       'Переменная в Python — это именованная ссылка на объект. Переменные позволяют сохранять, изменять и использовать значения в программах. В Python переменные не требуют объявления их типа, так как интерпретатор определит тип данных автоматически.',
-#                       'Переменная в Питоне — это как ярлык, который можно прикрепить к игрушке, чтобы потом знать, как её звать. Переменные помогают запомнить что-то важное, менять это и использовать, когда нужно. В Питоне не надо говорить, какая игрушка — машина или мячик, Питон сам всё поймёт!')
-#
-# print(interview.get_response())
+class InterviewThisOutReferensAnswer(Interview):
+    description = """
+                   Ты проводишь собеседование на знание языка программирования Python.
+                   На вход получаешь вопрос и ответ пользователя.
+                   Сформируй эталонный ответ на вопрос и сравните его с ответом пользователя.
+                   Сравни их по смыслу. Выстави оценку за правильность ответа по 10-бальной шкале.
+                   Будь снисходителен: ответ не должен точно повторять эталонный, должны быть похожи основные мысли.
+                   Не снижай оценку за структуру ответа, его краткость или многословность.
+                   Главное, чтобы в представленном ответе хоть как-то упоминались тезисы из эталонного ответа!
+                   Если все мысли похожи — это максимальный балл.
+                   Не снижай оценку за грамотность и форматирование ответа.
+                   Полное несовпадение — 0 баллов.
+                   Верна основная мысль — от 2 до 6 баллов.
+                   Верна основная мысль и дополнительные мысли — от 6 до 10 баллов.
+                   Не пиши о сравнении с эталонным ответом.
+                   Не снижай оценку за отсутствие второстепенных данных.
+                   Начни без вступления — сразу с оценки и того, что можно добавить к ответу.
+                   Оценку пиши так: "Ваша оценка: число(оценка)"
+                  """
