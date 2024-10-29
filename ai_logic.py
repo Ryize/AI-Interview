@@ -38,7 +38,7 @@ class Interview:
                    Оценку пиши так: "Ваша оценка: число(оценка)"
                   """
                   
-    def __init__(self, question, reference_question, user_question) -> None:
+    def __init__(self, question, reference_answer, user_answer) -> None:
         """
         Инициализация объекта класса Interview.
 
@@ -48,14 +48,14 @@ class Interview:
             user_question (str): Ответ пользователя, который необходимо оценить.
         """
         load_dotenv()
-        self.token = os.getenv('GPT_TOKEN')  # Исправлено: теперь токен сохраняется в атрибуте экземпляра
+        self.token = os.getenv('GPT_TOKEN')
         self.question = question
-        self.reference_answer = reference_question
-        self.user_answer = user_question
+        self.reference_answer = reference_answer
+        self.user_answer = user_answer
         self.user_request = self.user_request()
 
     def user_request(self):
-        if self.reference_question:
+        if self.reference_answer:
             return f'Вопрос: {self.question}.' \
                    f'Эталонный ответ: {self.reference_answer}' \
                    f'Ответ: {self.user_answer}'
@@ -105,6 +105,9 @@ class Interview:
             return f"Error: {response.status_code}\n{response.text}"
 
 class InterviewThisOutReferensAnswer(Interview):
+    """
+    По смылу полностью повторяет класс Interview, но не использует эталонный ответ.
+    """
     description = """
                    Ты проводишь собеседование на знание языка программирования Python.
                    На вход получаешь вопрос и ответ пользователя.

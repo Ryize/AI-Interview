@@ -20,11 +20,13 @@ class KeyboardMixin:
 
     def topics_kb(self, back=False):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-        python_button = types.KeyboardButton('Python')
-        hr_button = types.KeyboardButton('HR’ские')
+        python_trainee = types.KeyboardButton('Python(trainee)')
+        python_junior = types.KeyboardButton('Python(junior)')
+        python_middle = types.KeyboardButton('Python(middle)')
         django_button = types.KeyboardButton('Django')
         oop_button = types.KeyboardButton('ООП')
-        markup.add(python_button, hr_button, django_button, oop_button)
+        markup.row(python_trainee, python_junior, python_middle)
+        markup.row(django_button, oop_button)
         if back:
             back_button = types.KeyboardButton('Назад')
             markup.add(back_button)
