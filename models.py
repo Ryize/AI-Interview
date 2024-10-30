@@ -230,11 +230,15 @@ class DataAccess:
         session.commit()
 
     def get_questions_for_user_with_low_score(self, user_id):
-        return session.query(Question).\
-            join(ProgressStudy, ProgressStudy.question_id == Question.id).\
-            filter(ProgressStudy.user_id == user_id).\
-            filter(ProgressStudy.score < 7).\
-            all()
+        try:
+            query = session.query(Question).\
+                join(ProgressStudy, ProgressStudy.question_id == Question.id).\
+                filter(ProgressStudy.user_id == user_id).\
+                filter(ProgressStudy.score < 7).\
+                all()
+            return query
+        except SQLAlchemyError:
+            return False
 
     def check_date(self, user):
         now_day = datetime.now()

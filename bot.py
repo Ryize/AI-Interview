@@ -190,4 +190,8 @@ def unknown_command(message):
 # Запуск бота
 if __name__ == '__main__':
     print('Bot is running')
-    bot.polling(none_stop=True)
+    while True:
+        try:
+            bot.polling(none_stop=True)
+        except Exception:
+            continue
