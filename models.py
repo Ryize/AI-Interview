@@ -6,6 +6,7 @@ import random
 from dotenv import load_dotenv
 import os
 from datetime import datetime
+from sqlalchemy.exc import SQLAlchemyError
 load_dotenv()
 
 Base = declarative_base()
@@ -67,8 +68,14 @@ session = Session()
 
 
 class DataAccess:
-    def __init__(self):
-        self.session = Session()
+
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance.session = Session()
+        return cls._instance
 
     def get_existing_user(self, login):
         user = session.query(User).filter_by(login=login).first()
@@ -90,63 +97,117 @@ class DataAccess:
                 session.commit()
             except IntegrityError:
                 session.rollback()  # Откатить изменения, если возникла ошибка
-            else:
-                return True
-        else:
-            return True
 
     def get_random_unanswered_question(self, login, topic, difficulty=None):
-        # Получаем пользователя по его логину
-        user = self.get_existing_user(login)
+        user = self.get_user(login)
+        if not user:
+            return False
+        # Проверяем, есть ли у пользователя вопросы
         if user.question_limit < 1:
             return -1
-        # Создаем базовый запрос
-        query = session.query(Question).filter_by(topic=topic)
-        # Получаем список всех вопросов по указанной теме
-        if difficulty:
-            if difficulty == 'trainee':
-                all_questions = query.filter(Question.difficulty.between(1, 3))
-            elif difficulty == 'junior':
-                all_questions = query.filter(Question.difficulty.between(3, 5))
-            elif difficulty == 'middle':
-                all_questions = query.filter(Question.difficulty >= 5)
-        else:
-            all_questions = query.all()
+
+        # Получаем все вопросы по теме и сложности
+        all_questions = self.get_all_questions(topic, difficulty)
+        if not all_questions:
+            return False
 
         # Получаем список ID вопросов, на которые пользователь уже ответил
-        answered_question_ids = (
-            session.query(ProgressStudy.question_id)
-            .filter_by(user_id=user.id)
-            .all()
-        )
-        # Преобразуем в список ID
-        answered_question_ids = [qid[0] for qid in answered_question_ids]
+        answered_question_ids = self.get_answered_question_ids(user.id)
 
         # Фильтруем вопросы, на которые пользователь не ответил
-        unanswered_questions = [
-            question for question in all_questions
-            if question.id not in answered_question_ids
-        ]
+        if not answered_question_ids:
+            unanswered_questions = all_questions
+        else:
+            unanswered_questions = self.filter_unanswered_questions(
+                all_questions, answered_question_ids)
 
-        # Проверяем, есть ли вопросы, на которые пользователь не ответил
+        # Если нет неотвеченных вопросов, получаем вопрос с низкой оценкой
         if not unanswered_questions:
-            question_low_score = self.get_questions_for_user_with_low_score(
-                user.id)
+            return self.get_low_score_question(user)
+
+        return self.select_random_question(user, unanswered_questions)
+
+    def get_user(self, login):
+        try:
+            # Получаем пользователя по его логину
+            user = self.get_existing_user(login)
+            return user
+        except SQLAlchemyError:
+            return False
+
+    def get_all_questions(self, topic, difficulty):
+        try:
+            # Создаем базовый запрос
+            query = session.query(Question).filter_by(topic=topic)
+            # Получаем список всех вопросов по указанной теме
+            if difficulty:
+                if difficulty == 'trainee':
+                    return query.filter(
+                        Question.difficulty.between(1, 3)).all()
+                elif difficulty == 'junior':
+                    return query.filter(
+                        Question.difficulty.between(3, 5)).all()
+                elif difficulty == 'middle':
+                    return query.filter(
+                        Question.difficulty >= 5).all()
+                else:
+                    return False
+            else:
+                return query.all()
+        except SQLAlchemyError:
+            return False
+
+    def get_answered_question_ids(self, user_id):
+        try:
+            # Получаем список ID вопросов,
+            # на которые пользователь уже ответил
+            answered = session.query(
+                ProgressStudy.question_id).filter_by(user_id=user_id).all()
+            return [qid[0] for qid in answered]
+        except (SQLAlchemyError, IndexError):
+            return False
+
+    def filter_unanswered_questions(self,
+                                    all_questions,
+                                    answered_question_ids):
+        try:
+            # Фильтруем вопросы, на которые пользователь не ответил
+            return [
+                question for question in all_questions
+                if question.id not in answered_question_ids
+            ]
+        except Exception as e:
+            print(f"Ошибка: {e}")
+            return False
+
+    def get_low_score_question(self, user):
+        try:
+            # Получаем вопросы с низкой оценкой
+            question_low_score = self. \
+                get_questions_for_user_with_low_score(user.id)
             if question_low_score:
-                user.question_limit = user.question_limit - 1
+                user.question_limit -= 1
                 session.commit()
                 return random.choice(question_low_score)
             else:
-                return False
+                return -2
+        except (SQLAlchemyError, IndexError):
+            return False
 
-        # Возвращаем случайный вопрос
-        user.question_limit = user.question_limit - 1
-        session.commit()
-        return random.choice(unanswered_questions) 
+    @staticmethod
+    def select_random_question(user, questions):
+        try:
+            # Уменьшаем количество вопросов у пользователя
+            user.question_limit -= 1
+            session.commit()
+            # Возвращаем случайный вопрос
+            return random.choice(questions)
+        except (SQLAlchemyError, IndexError):
+            return False
 
     def save_progress(self, login, question_id, answer, score):
 
-        user = self.get_existing_user(login=login)
+        user = self.get_user(login=login)
 
         # Проверяем, есть ли уже прогресс для данного пользователя и вопроса
         existing_progress = session.query(ProgressStudy).filter_by(
@@ -166,7 +227,6 @@ class DataAccess:
                                          date=datetime.now())
             session.add(new_progress)
 
-        # Сохраняем изменения в базе данных
         session.commit()
 
     def get_questions_for_user_with_low_score(self, user_id):

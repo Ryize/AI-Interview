@@ -22,12 +22,25 @@ interview_question = {}
 
 @bot.message_handler(commands=['start'])
 def start(message):
-
-    login = str(message.from_user.id)
-    if data_access.add_user(login):
+    try:
+        login = str(message.from_user.id)
+        data_access.add_user(login)
         bot.send_message(message.chat.id,
                          f"Привет, {message.from_user.first_name}, начнем!",
                          reply_markup=kb.main_menu())
+
+    except AttributeError:
+        bot.send_message(
+            message.chat.id,
+            'Ошибка при получении данных пользователя, перезапустите бот')
+    except telebot.apihelper.ApiException:
+        bot.send_message(
+            message.chat.id,
+            'Ошибка при отправке сообщения, перезапустите бот')
+    except Exception:
+        bot.send_message(
+            message.chat.id,
+            'Произошла непредвиденная ошибка, перезапустите бот')
 
 
 # Обработчик нажатия на кнопку "Информация"
@@ -81,7 +94,7 @@ def ai_interview_question(message):
 
 
 def get_question(message, login, chat_id, topic, difficulty=None):
-    user = data_access.get_existing_user(login)
+    user = data_access.get_user(login)
     data_access.check_date(user)  # Обновляем колличество вопросов на день
     question = data_access.get_random_unanswered_question(
         user.login, topic, difficulty)
@@ -91,6 +104,17 @@ def get_question(message, login, chat_id, topic, difficulty=None):
                 chat_id,
                 'Колличество попыток иссякло, завтра можно продолжить',
                 reply_markup=kb.main_menu())
+        elif question == -2:
+            if difficulty:
+                bot.send_message(
+                    chat_id, 'Вы ответили на все вопросы правильно!'
+                    f'\nПоздравляю! Вы прошли интервью по {topic}({difficulty})! 🎉',
+                    reply_markup=kb.main_menu())
+            else:
+                bot.send_message(
+                    chat_id, 'Вы ответили на все вопросы правильно!'
+                    f'\nПоздравляю! Вы прошли интервью по {topic}! 🎉',
+                    reply_markup=kb.main_menu())
         else:
             interview_question[chat_id] = {'question': question}
             bot.send_message(chat_id, 'Ответьте на вопрос:')
@@ -100,15 +124,7 @@ def get_question(message, login, chat_id, topic, difficulty=None):
             bot.register_next_step_handler(
                 message, ai_interview_receive_answer)
     else:
-        if difficulty:
-            bot.send_message(
-                chat_id, 'Вы ответили на все вопросы правильно!'
-                f'\nПоздравляю! Вы прошли интервью по {topic}({difficulty})!🎉',
-                reply_markup=kb.main_menu())
-        else:
-            bot.send_message(chat_id, 'Вы ответили на все вопросы правильно!'
-                             f'\nПоздравляю! Вы прошли интервью по {topic}!🎉',
-                             reply_markup=kb.main_menu())
+        bot.send_message(chat_id, 'Произошла ошибка, попробуйте заново!')
 
 
 def ai_interview_receive_answer(message):
