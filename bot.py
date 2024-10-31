@@ -48,10 +48,9 @@ def start(message):
 def info(message):
     bot.send_message(
         message.chat.id,
-        "Этот бот помогает")
+        "Этот бот помогает пройти интервью по Python, Django, ООП")
 
 
-# Обработчик нажатия на кнопку 'Выбрать тему для вопросов 🧑‍💻'
 @bot.message_handler(
         func=lambda message: message.text == 'Выбрать тему для вопросов 🧑‍💻')
 def ai_interview_topics(message):
@@ -175,7 +174,6 @@ def call_back_main_menu(call):
 def callback_main_menu(call):
     bot.send_message(call.message.chat.id, 'Возвращаемся в главное меню',
                      reply_markup=kb.main_menu())
-    bot.register_next_step_handler(call.message, ai_interview_question)
 
 
 # Обработчик неизвестных команд
@@ -189,9 +187,9 @@ def unknown_command(message):
 
 # Запуск бота
 if __name__ == '__main__':
-    print('Bot is running')
+    print('Бот запущен')
     while True:
         try:
-            bot.polling(none_stop=True)
-        except Exception:
+            bot.polling()
+        except:
             continue
