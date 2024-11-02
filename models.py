@@ -83,6 +83,14 @@ class DataAccess:
             return None
         return user
 
+    def get_user(self, login):
+        try:
+            # Получаем пользователя по его логину
+            user = self.get_existing_user(login)
+            return user
+        except SQLAlchemyError:
+            return False
+
     def add_user(self, login):
         # Проверяем, существует ли пользователь с таким логином в базе
         user = self.get_existing_user(login)
@@ -97,6 +105,17 @@ class DataAccess:
                 session.commit()
             except IntegrityError:
                 session.rollback()  # Откатить изменения, если возникла ошибка
+
+    def check_date(self, user):
+        now_day = datetime.now()
+        last_visit = user.last_visit
+        if now_day.date() > last_visit.date():
+            user.question_limit = 10
+            user.last_visit = now_day
+            session.commit()
+            return True
+        else:
+            return False
 
     def get_random_unanswered_question(self, login, topic, difficulty=None):
         user = self.get_user(login)
@@ -126,14 +145,6 @@ class DataAccess:
             return self.get_low_score_question(user)
 
         return self.select_random_question(user, unanswered_questions)
-
-    def get_user(self, login):
-        try:
-            # Получаем пользователя по его логину
-            user = self.get_existing_user(login)
-            return user
-        except SQLAlchemyError:
-            return False
 
     def get_all_questions(self, topic, difficulty):
         try:
@@ -240,13 +251,72 @@ class DataAccess:
         except SQLAlchemyError:
             return False
 
-    def check_date(self, user):
-        now_day = datetime.now()
-        last_visit = user.last_visit
-        if now_day.day > last_visit.day:
-            user.question_limit = 10
-            user.last_visit = now_day
-            session.commit()
-            return True
-        else:
+    def get_questions_for_user_with_high_score(self, user_id):
+        try:
+            query = session.query(Question).\
+                join(ProgressStudy, ProgressStudy.question_id == Question.id).\
+                filter(ProgressStudy.user_id == user_id).\
+                filter(ProgressStudy.score >= 7).\
+                all()
+            return query
+        except SQLAlchemyError:
+            return False
+
+    def get_questions_for_user_with_high_score_by_topic(self, user_id, topic):
+        try:
+            query = self.get_questions_for_user_with_high_score(user_id)
+            return [question for question in query if question.topic == topic]
+        except SQLAlchemyError:
+            return False
+
+    def get_count_questions_for_user_with_high_score_by_Python(self, user_id):
+        try:
+            query = self.get_questions_for_user_with_high_score_by_topic(
+                user_id, 'Python')
+            python_trainee = [
+                question for question in query if question.difficulty in range(
+                    1, 4)]
+            python_junior = [
+                question for question in query if question.difficulty in range(
+                    3, 6)]
+            python_middle = [
+                question for question in query if question.difficulty >= 5]
+            return len(python_trainee), len(python_junior), len(python_middle)
+        except SQLAlchemyError:
+            return False
+
+    def get_count_all_questions_for_Python(self):
+        try:
+            query = self.get_all_questions('Python', None)
+            python_trainee = [
+                question for question in query if question.difficulty in range(
+                    1, 4)]
+            python_junior = [
+                question for question in query if question.difficulty in range(
+                    3, 6)]
+            python_middle = [
+                question for question in query if question.difficulty >= 5]
+            return len(python_trainee), len(python_junior), len(python_middle)
+        except SQLAlchemyError:
+            return False
+
+    def get_progress_Python(self, user_id):
+        try:
+            trainee_all, junior_all, middle_all = self. \
+                get_count_all_questions_for_Python()
+            trainee_user, junior_user, middle_user = self. \
+                get_count_questions_for_user_with_high_score_by_Python(user_id)
+            return round(trainee_user / trainee_all * 100, 2), \
+                round(junior_user / junior_all * 100, 2), \
+                round(middle_user / middle_all * 100, 2)
+        except SQLAlchemyError:
+            return False
+
+    def get_progress_topic(self, user_id, topic):
+        try:
+            all_questions = self.get_all_questions(topic, None)
+            user_questions = self. \
+                get_questions_for_user_with_high_score_by_topic(user_id, topic)
+            return round(len(user_questions) / len(all_questions) * 100, 2)
+        except SQLAlchemyError:
             return False

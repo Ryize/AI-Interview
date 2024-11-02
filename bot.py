@@ -20,13 +20,13 @@ interview_data = {}
 interview_question = {}
 
 
-@bot.message_handler(commands=['start'])
+@bot.message_handler(commands=['start', 'help'])
 def start(message):
     try:
         login = str(message.from_user.id)
         data_access.add_user(login)
         bot.send_message(message.chat.id,
-                         f"Привет, {message.from_user.first_name}, начнем!",
+                         f'Привет, {message.from_user.first_name}, начнем!',
                          reply_markup=kb.main_menu())
 
     except AttributeError:
@@ -48,7 +48,35 @@ def start(message):
 def info(message):
     bot.send_message(
         message.chat.id,
-        "Этот бот помогает пройти интервью по Python, Django, ООП")
+        'Этот бот предоставляет комплексную подготовку к собеседованию '
+        'по языку Python, Django и принципам объектно-ориентированного '
+        'программирования (ООП). Он генерирует вопросы различной сложности, '
+        'оценивает ответы пользователя и предоставляет обратную связь для '
+        'улучшения навыков. На день у вас есть 10 попыток ответить на вопросы. '
+        'Каждый день количество попыток обновляется до 10. '
+        'В профилке вы можете наблюдать колличество попыток и прогресс обучения.'
+        'Вопрос вам засчитывается, если вы ответили на 7 баллов и выше.'
+        'В начале все вопросы будут уникальными, после будут повторяться вопросы, '
+        'ниже проходного балла, до тех пор пока все вопросы не будут зачтены.')
+
+# Обработчик нажатия на кнопку "Профиль"
+@bot.message_handler(func=lambda message: message.text == 'Ваш профиль 🧑')
+def profile(message):
+    user = data_access.get_user(message.from_user.id)
+    limit = user.question_limit
+    progress_python_trainee = data_access.get_progress_Python(user.id)[0]
+    progress_python_junior = data_access.get_progress_Python(user.id)[1]
+    progress_python_middle = data_access.get_progress_Python(user.id)[2]
+    progress_django = data_access.get_progress_topic(user.id, 'Django')
+    progress_oop = data_access.get_progress_topic(user.id, 'ООП')
+    bot.send_message(
+        message.chat.id,
+        f'Сегодня у вас осталось {limit} попыток.\n'
+        f'Прогресс изучения Python(trainee): {progress_python_trainee}%\n'
+        f'Прогресс изучения Python(junior): {progress_python_junior}%\n'
+        f'Прогресс изучения Python(middle): {progress_python_middle}%\n'
+        f'Прогресс изучения Django: {progress_django}%\n'
+        f'Прогресс изучения ООП: {progress_oop}%')
 
 
 @bot.message_handler(
@@ -130,6 +158,9 @@ def ai_interview_receive_answer(message):
     chat_id = message.chat.id
     user_answer = message.text  # Ответ пользователя
     login = message.from_user.id
+
+    msg = bot.send_message(chat_id, '⚙️ Ожидание...')
+
     question = interview_question[chat_id]['question'].question
     question_id = int(interview_question[chat_id]['question'].id)
     reference_answer = interview_question[chat_id]['question'].answer
@@ -144,7 +175,10 @@ def ai_interview_receive_answer(message):
     score = bussiness_logic.extract_first_digit(answer_gpt)
     data_access.save_progress(login, question_id, user_answer, score)
 
-    bot.send_message(chat_id, answer_gpt, reply_markup=kb.interview_menu())
+    bot.edit_message_text(chat_id=chat_id,
+                          message_id=msg.message_id,
+                          text=answer_gpt,
+                          reply_markup=kb.interview_menu())
 
 
 # Добавляем обработчик для инлайн-кнопки
@@ -191,5 +225,5 @@ if __name__ == '__main__':
     while True:
         try:
             bot.polling()
-        except:
+        except Exception:
             continue
