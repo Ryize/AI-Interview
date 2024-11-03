@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import os
 from datetime import datetime
 from sqlalchemy.exc import SQLAlchemyError
+from logger import logger
 load_dotenv()
 
 Base = declarative_base()
@@ -77,12 +78,14 @@ class DataAccess:
             cls._instance.session = Session()
         return cls._instance
 
+    @logger.catch
     def get_existing_user(self, login):
         user = session.query(User).filter_by(login=login).first()
         if not user:
             return None
         return user
 
+    @logger.catch
     def get_user(self, login):
         try:
             # Получаем пользователя по его логину
@@ -91,6 +94,7 @@ class DataAccess:
         except SQLAlchemyError:
             return False
 
+    @logger.catch
     def add_user(self, login):
         # Проверяем, существует ли пользователь с таким логином в базе
         user = self.get_existing_user(login)
@@ -106,6 +110,7 @@ class DataAccess:
             except IntegrityError:
                 session.rollback()  # Откатить изменения, если возникла ошибка
 
+    @logger.catch
     def check_date(self, user):
         now_day = datetime.now()
         last_visit = user.last_visit
@@ -117,6 +122,7 @@ class DataAccess:
         else:
             return False
 
+    @logger.catch
     def get_random_unanswered_question(self, login, topic, difficulty=None):
         user = self.get_user(login)
         if not user:
@@ -146,6 +152,7 @@ class DataAccess:
 
         return self.select_random_question(user, unanswered_questions)
 
+    @logger.catch
     def get_all_questions(self, topic, difficulty):
         try:
             # Создаем базовый запрос
@@ -168,6 +175,7 @@ class DataAccess:
         except SQLAlchemyError:
             return False
 
+    @logger.catch
     def get_answered_question_ids(self, user_id):
         try:
             # Получаем список ID вопросов,
@@ -178,6 +186,7 @@ class DataAccess:
         except (SQLAlchemyError, IndexError):
             return False
 
+    @logger.catch
     def filter_unanswered_questions(self,
                                     all_questions,
                                     answered_question_ids):
@@ -191,6 +200,7 @@ class DataAccess:
             print(f"Ошибка: {e}")
             return False
 
+    @logger.catch
     def get_low_score_question(self, user):
         try:
             # Получаем вопросы с низкой оценкой
@@ -205,6 +215,7 @@ class DataAccess:
         except (SQLAlchemyError, IndexError):
             return False
 
+    @logger.catch
     @staticmethod
     def select_random_question(user, questions):
         try:
@@ -216,6 +227,7 @@ class DataAccess:
         except (SQLAlchemyError, IndexError):
             return False
 
+    @logger.catch
     def save_progress(self, login, question_id, answer, score):
 
         user = self.get_user(login=login)
@@ -240,6 +252,7 @@ class DataAccess:
 
         session.commit()
 
+    @logger.catch
     def get_questions_for_user_with_low_score(self, user_id):
         try:
             query = session.query(Question).\
@@ -251,6 +264,7 @@ class DataAccess:
         except SQLAlchemyError:
             return False
 
+    @logger.catch
     def get_questions_for_user_with_high_score(self, user_id):
         try:
             query = session.query(Question).\
@@ -262,6 +276,7 @@ class DataAccess:
         except SQLAlchemyError:
             return False
 
+    @logger.catch
     def get_questions_for_user_with_high_score_by_topic(self, user_id, topic):
         try:
             query = self.get_questions_for_user_with_high_score(user_id)
@@ -269,6 +284,7 @@ class DataAccess:
         except SQLAlchemyError:
             return False
 
+    @logger.catch
     def get_count_questions_for_user_with_high_score_by_Python(self, user_id):
         try:
             query = self.get_questions_for_user_with_high_score_by_topic(
@@ -285,6 +301,7 @@ class DataAccess:
         except SQLAlchemyError:
             return False
 
+    @logger.catch
     def get_count_all_questions_for_Python(self):
         try:
             query = self.get_all_questions('Python', None)
@@ -300,6 +317,7 @@ class DataAccess:
         except SQLAlchemyError:
             return False
 
+    @logger.catch
     def get_progress_Python(self, user_id):
         try:
             trainee_all, junior_all, middle_all = self. \
@@ -312,6 +330,7 @@ class DataAccess:
         except SQLAlchemyError:
             return False
 
+    @logger.catch
     def get_progress_topic(self, user_id, topic):
         try:
             all_questions = self.get_all_questions(topic, None)

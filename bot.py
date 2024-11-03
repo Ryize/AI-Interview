@@ -6,6 +6,7 @@ from business_logic import BusinessLogic
 import os
 from dotenv import load_dotenv
 from telebot import types
+from logger import logger
 
 load_dotenv()
 API_TOKEN = os.getenv('API_TOKEN')
@@ -20,6 +21,7 @@ interview_data = {}
 interview_question = {}
 
 
+@logger.catch
 @bot.message_handler(commands=['start', 'help'])
 def start(message):
     try:
@@ -44,22 +46,25 @@ def start(message):
 
 
 # Обработчик нажатия на кнопку "Информация"
+@logger.catch
 @bot.message_handler(func=lambda message: message.text == 'Информация 📚')
 def info(message):
     bot.send_message(
         message.chat.id,
-        'Этот бот предоставляет комплексную подготовку к собеседованию '
-        'по языку Python, Django и принципам объектно-ориентированного '
+        'Этот бот предоставляет комплексную подготовку к собеседованию по '
+        'языку Python, Django и принципам объектно-ориентированного '
         'программирования (ООП). Он генерирует вопросы различной сложности, '
         'оценивает ответы пользователя и предоставляет обратную связь для '
-        'улучшения навыков. На день у вас есть 10 попыток ответить на вопросы. '
-        'Каждый день количество попыток обновляется до 10. '
-        'В профилке вы можете наблюдать колличество попыток и прогресс обучения.'
-        'Вопрос вам засчитывается, если вы ответили на 7 баллов и выше.'
-        'В начале все вопросы будут уникальными, после будут повторяться вопросы, '
-        'ниже проходного балла, до тех пор пока все вопросы не будут зачтены.')
+        'улучшения навыков. На день у вас есть 10 попыток ответить на вопросы.'
+        'Каждый день количество попыток обновляется до 10. В профилке вы '
+        'можете наблюдать колличество попыток и прогресс обучения. Вопрос вам '
+        'засчитывается, если вы ответили на 7 баллов и выше. В начале все '
+        'вопросы будут уникальными, после будут повторяться вопросы, ниже '
+        'проходного балла, до тех пор пока все вопросы не будут зачтены.')
+
 
 # Обработчик нажатия на кнопку "Профиль"
+@logger.catch
 @bot.message_handler(func=lambda message: message.text == 'Ваш профиль 🧑')
 def profile(message):
     user = data_access.get_user(message.from_user.id)
@@ -79,6 +84,7 @@ def profile(message):
         f'Прогресс изучения ООП: {progress_oop}%')
 
 
+@logger.catch
 @bot.message_handler(
         func=lambda message: message.text == 'Выбрать тему для вопросов 🧑‍💻')
 def ai_interview_topics(message):
@@ -89,6 +95,7 @@ def ai_interview_topics(message):
 
 
 # Обработчик выбора темы для AI Собес
+@logger.catch
 def ai_interview_question(message):
     chat_id = message.chat.id
     login = message.from_user.id
@@ -120,6 +127,7 @@ def ai_interview_question(message):
         get_question(message, login, chat_id, 'ООП')
 
 
+@logger.catch
 def get_question(message, login, chat_id, topic, difficulty=None):
     user = data_access.get_user(login)
     data_access.check_date(user)  # Обновляем колличество вопросов на день
@@ -154,6 +162,7 @@ def get_question(message, login, chat_id, topic, difficulty=None):
         bot.send_message(chat_id, 'Произошла ошибка, попробуйте заново!')
 
 
+@logger.catch
 def ai_interview_receive_answer(message):
     chat_id = message.chat.id
     user_answer = message.text  # Ответ пользователя
@@ -182,6 +191,7 @@ def ai_interview_receive_answer(message):
 
 
 # Добавляем обработчик для инлайн-кнопки
+@logger.catch
 @bot.callback_query_handler(func=lambda call: call.data == "next_question")
 def callback_next_question(call):
     chat_id = call.message.chat.id
@@ -196,6 +206,7 @@ def callback_next_question(call):
                                   reply_markup=None)
 
 
+@logger.catch
 @bot.callback_query_handler(func=lambda call: call.data == "topic")
 def call_back_main_menu(call):
     bot.send_message(call.message.chat.id,
@@ -211,6 +222,7 @@ def callback_main_menu(call):
 
 
 # Обработчик неизвестных команд
+@logger.catch
 @bot.message_handler(func=lambda message: True)
 def unknown_command(message):
     bot.send_message(

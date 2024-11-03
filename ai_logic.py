@@ -2,6 +2,7 @@ import os
 import requests
 import json
 from dotenv import load_dotenv
+from logger import logger
 
 
 class Interview:
@@ -62,6 +63,7 @@ class Interview:
         self.user_answer = user_answer
         self.user_request = self.user_request()
 
+    @logger.catch
     def user_request(self):
         if self.reference_answer:
             return f'Вопрос: {self.question}.' \
@@ -71,6 +73,7 @@ class Interview:
             return f'Вопрос: {self.question}.' \
                    f'Ответ: {self.user_answer}'
 
+    @logger.catch
     def get_response(self) -> str:
         """
         Выполняет запрос к OpenAI API для оценки ответа пользователя.
