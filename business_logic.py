@@ -1,7 +1,10 @@
 import re
+from logger import logger
 
 
 class BusinessLogic:
+
+    @logger.catch
     @staticmethod
     def extract_first_digit(message):
         try:
